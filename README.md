@@ -32,7 +32,7 @@ This is a context mixing compressor written in C (C89 is currently used).
 Building
 --------
 
-You need to use CMake[1], and some decent compiler (tested with GCC 4.2+).
+You need to use [CMake][1], and some decent compiler (tested with GCC 4.2+).
 
   [1]: http://www.cmake.org/
 
