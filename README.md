@@ -40,3 +40,10 @@ Contact
 -------
 
 Please contact me at tcmreastwood@gmail.com
+
+Acknowledgement
+---------------
+
+The arithmetic coder is based off [Shelwein's arithmetic coder][2]. 
+
+  [2]: http://encode.ru/threads/1153-Simple-binary-rangecoder-demo?highlight=arithmetic+coder
