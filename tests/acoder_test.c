@@ -61,25 +61,10 @@ int main(int argc, char** argv)
 			int j;
 			int c = getc(f);
 			pd_order0_byte(&p);
-			/*for (j = 0x80; j > 0; j >>= 1)*/
-				/*pd_order0_update(&p,*/
-						 /*ac_encoder_process(&s, pd_order0_probability(&p), c & j));*/
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x80));
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x40));
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x20));
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x10));
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x08));
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x04));
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x02));
-			pd_order0_update(&p,
-					 ac_encoder_process(&s, pd_order0_probability(&p), c & 0x01));
+#pragma unroll(8)
+			for (j = 0x80; j > 0; j >>= 1)
+				pd_order0_update(&p,
+						 ac_encoder_process(&s, pd_order0_probability(&p), c & j));
 		}
 
 		ac_encoder_finish(&s);
