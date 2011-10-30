@@ -4,6 +4,10 @@ vor 0.0.0
 License
 -------
 
+The license for this project is typically the MIT/Expat license. However,
+certain files are also released in public domain and are plainly marked in the
+file as such.
+
 > Copyright (c) 2011 Tai Chi Minh Ralph Eastwood <tcmreastwood@gmail.com>
 >
 > Permission is hereby granted, free of charge, to any person obtaining a copy
