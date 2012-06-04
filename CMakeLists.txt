@@ -8,3 +8,4 @@ include_directories(include)
 set(VOR_HEADERS include/acoder.h include/pd_order0.h)
 
 add_executable(acoder_test tests/acoder_test.c ${VOR_HEADERS})
+add_executable(vor src/vor.c ${VOR_HEADERS})
