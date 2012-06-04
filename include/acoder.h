@@ -3,11 +3,6 @@
  * based on Shelwien's Range Coder from
  * http://encode.ru/threads/1153-Simple-binary-rangecoder-demo
  *
- * Written by Tai Chi Minh Ralph Eastwood
- * Put in Public Domain (for countries that this is legally possible).
- *
- * Otherwise, this code is licensed using the MIT license:
- *
  * Copyright (C) 2011 by Tai Chi Minh Ralph Eastwood
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy

@@ -3,11 +3,6 @@
  * based on Shelwien's predictor from
  * http://encode.ru/threads/1153-Simple-binary-rangecoder-demo
  *
- * Written by Tai Chi Minh Ralph Eastwood
- * Put in Public Domain (for countries that this is legally possible).
- *
- * Otherwise, this code is licensed using the MIT license:
- *
  * Copyright (C) 2011 by Tai Chi Minh Ralph Eastwood
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -42,7 +37,7 @@ typedef struct pd_order0_data_s {
 	uint16_t p[SIZEOF_P];
 } pd_order0_t;
 
-static inline uint32_t pd_order0_byte(pd_order0_t *d)
+static inline uint32_t pd_order0_reset(pd_order0_t *d)
 {
 	uint32_t c = d->cxt;
 	d->cxt = 1;
@@ -54,7 +49,7 @@ static inline void pd_order0_init(pd_order0_t *d)
 	int i;
 	for (i = 0; i < sizeof(d->p) / sizeof(d->p[0]); i++)
 		d->p[i] = AC_SCALE_HALF;
-	pd_order0_byte(d);
+	pd_order0_reset(d);
 }
 static inline uint32_t pd_order0_probability(pd_order0_t *d)
 {

@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 		for (i = 0; i < f_len; i++) {
 			int j;
 			int c = getc(f);
-			pd_order0_byte(&p);
+			pd_order0_reset(&p);
 #pragma unroll(8)
 			for (j = 0x80; j > 0; j >>= 1)
 				pd_order0_update(&p,
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 			for (j = 0; j < 8; j++)
 				pd_order0_update(&p,
 						 ac_decoder_process(&s, pd_order0_probability(&p)));
-			putc(pd_order0_byte(&p), g);
+			putc(pd_order0_reset(&p), g);
 		}
 
 		ac_decoder_finish(&s);
