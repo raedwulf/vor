@@ -29,17 +29,64 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+/**
+ * Prepare the context models.
+ */
+#include "acoder.h"
+#include "pd_order0.h"
+#include "pd_order1.h"
+#define MAX_CONTEXTS 2
+#include "mix_nn0.h"
+
 #define MAX_FILES 1024
 
-static int verbose_flag;    /* Flag set by ‘--verbose’. */
-static int stdout_flag;     /* Flag set by ‘--stdout’. */
-static int compress_flag;   /* Flag set by ‘--compress’. */
-static int decompress_flag; /* Flag set by ‘--decompress’. */
-static int compress_level;  /* Compression level */
-static char *input_files[MAX_FILES]; /* First argument */
+static int verbose_flag;    /* flag set by ‘--verbose’. */
+static int stdout_flag;     /* flag set by ‘--stdout’. */
+static int compress_flag;   /* flag set by ‘--compress’. */
+static int decompress_flag; /* flag set by ‘--decompress’. */
+static int compress_level;  /* compression level */
+static char *input_files[MAX_FILES]; /* first argument */
 static int num_files = 0;
 
-int main (int argc, char **argv)
+typedef enum {
+	VOR_COMPRESS_MODE,
+	VOR_DECOMPRESS_MODE
+} vor_mode_t;
+typedef struct {
+	vor_mode_t m;
+	ac_state_t s;
+	pd_order0_t p0;
+	pd_order1_t p1;
+	off_t length;
+} vor_t;
+
+void vor_init(vor_t *v, vor_mode_t m, FILE *stream, off_t length)
+{
+	pd_order0_init(&v->p0);
+	pd_order1_init(&v->p1);
+	v->m = m;
+	v->length = length;
+	switch (m) {
+		case VOR_COMPRESS_MODE:
+			fwrite(&length, 1, sizeof(off_t), stream);
+			ac_encoder_init(&v->s, stream);
+			break;
+		case VOR_DECOMPRESS_MODE:
+			fread(&v->length, 1, sizeof(off_t), stream);
+			ac_decoder_init(&v->s, stream);
+			break;
+	}
+}
+
+size_t vor_write(vor_t *v, const void *ptr, size_t size, size_t count)
+{
+}
+
+size_t vor_read(vor_t *v, void *ptr, size_t size, size_t count)
+{
+}
+
+int main(int argc, char **argv)
 {
 	verbose_flag = 1;
 	stdout_flag = 0;
@@ -84,8 +131,10 @@ int main (int argc, char **argv)
 			compress_level = c - '0'; break;
 		case 'h':
 			printf("Usage: vor [OPTIONS]... [FILES]...\n");
-			printf("Compress or decompress files (by default compress in-place).\n\n");
-			printf("Default is to use STDIN if no file is specified or if - is given.\n");
+			printf("Compress or decompress files (by default "
+					"compress in-place).\n\n");
+			printf("Default is to use STDIN if no file is"
+					"specified or if - is given.\n");
 			exit(0);
 		default:
 			abort();
@@ -98,18 +147,38 @@ int main (int argc, char **argv)
 		while (optind < argc) {
 			struct stat s;
 			filename = argv[optind++];
-			/* do some sanity checking to make sure that the files can be accessed */
+			/* do some sanity checking to make sure that the
+			 * files can be accessed */
 			if (stat(filename, &s)) {
 				if (S_ISDIR(s.st_mode)) {
-					fprintf(stderr, "ERROR: %s is a directory.", filename);
+					fprintf(stderr,
+						"ERROR: %s is a directory.",
+						filename);
 					abort();
 				}
 			} else {
-				fprintf(stderr, "ERROR: %s does not exist.", filename);
+				fprintf(stderr, "ERROR: %s does not exist.",
+					filename);
 				abort();
 			}
 			input_files[num_files++] = filename;
 		}
         }
+
+	if (compress_flag && decompress_flag) {
+		fprintf(stderr, "ERROR: cannot compress and decompress at"
+				"the same time.");
+	}
+
+	if (!compress_flag && !decompress_flag) {
+		fprintf(stderr, "ERROR: nothing to do.");
+	}
+
+	int i;
+	for (i = 0; i < num_files; i++) {
+		if (compress_flag) {
+		} else {
+		}
+	}
 	exit(0);
 }

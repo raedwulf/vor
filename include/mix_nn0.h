@@ -1,7 +1,5 @@
 /**
- * Order-0 Predictor in C
- * based on Shelwien's predictor from
- * http://encode.ru/threads/1153-Simple-binary-rangecoder-demo
+ * Neural-network mixer
  *
  * Copyright (C) 2011 by Tai Chi Minh Ralph Eastwood
  *
@@ -24,50 +22,50 @@
  * THE SOFTWARE.
  */
 
-#ifndef _PD_ORDER0_H_
-#define _PD_ORDER0_H_
+#ifndef _PD_MIXER_NN0_H_
+#define _PD_MIXER_NN0_H_
 
 #include <stdint.h>
-#include "acoder.h"
+#include <math.h>
 
-#define SIZEOF_P 255
+#ifndef MAX_CONTEXTS
+#error "MAX_CONTEXTS must be defined."
+#endif
+#ifndef LEARNING_RATE
+#define LEARNING_RATE 0.001
+#endif
 
-typedef struct pd_order0_data_s {
-	uint8_t cxt;
-	uint16_t p[SIZEOF_P];
-} pd_order0_t;
+typedef struct {
+	float weights[MAX_CONTEXTS];
+	float x[MAX_CONTEXTS];
+	float m;
+} mix_nn0_t;
 
-static inline uint32_t pd_order0_reset(pd_order0_t *d)
-{
-	uint32_t c = d->cxt;
-	d->cxt = 1;
-	return c;
-}
-
-static inline void pd_order0_init(pd_order0_t *d)
+static inline void mix_nn0_init(mix_nn0_t *nn)
 {
 	int i;
-	for (i = 0; i < sizeof(d->p) / sizeof(d->p[0]); i++)
-		d->p[i] = AC_SCALE_HALF;
-	pd_order0_reset(d);
-}
-static inline uint32_t pd_order0_probability(pd_order0_t *d)
-{
-	return d->p[d->cxt-1];
+	for (i = 0; i < MAX_CONTEXTS; i++)
+		nn->weights[i] = 0.5;
 }
 
-static inline void pd_order0_update(pd_order0_t *d, int y)
+static inline float mix_nn0_mix(mix_nn0_t *nn, uint16_t p[MAX_CONTEXTS])
 {
-	if (y) {
-		d->p[d->cxt-1] -= d->p[d->cxt-1] >> 5;
-		d->cxt <<= 1;
-		d->cxt++;
-	} else {
-		d->p[d->cxt-1] += (AC_SCALE - d->p[d->cxt-1]) >> 5;
-		d->cxt <<= 1;
+	int i;
+	nn->m = 0.0;
+	for (i = 0; i < MAX_CONTEXTS; i++) {
+		float pi = p[i] * UINT16_MAX;
+		nn->x[i] = log(pi/(1-pi));
 	}
+	for (i = 0; i < MAX_CONTEXTS; i++)
+		nn->m += nn->weights[i] * nn->x[i];
+	nn->m = 1.0 / (1.0 + exp(-nn->m));
+	return nn->m;
 }
 
-#undef SIZEOF_P
-
+static inline float mix_nn0_update(mix_nn0_t *nn, int y)
+{
+	int i;
+	for (i = 0; i < MAX_CONTEXTS; i++)
+		nn->weights[i] += LEARNING_RATE * nn->x[i] * (y - nn->m);
+}
 #endif

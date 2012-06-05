@@ -1,6 +1,6 @@
 /**
- * Order-0 Predictor in C
- * based on Shelwien's predictor from
+ * Arithmetic Coder in C
+ * based on Shelwien's Range Coder from
  * http://encode.ru/threads/1153-Simple-binary-rangecoder-demo
  *
  * Copyright (C) 2011 by Tai Chi Minh Ralph Eastwood
@@ -24,50 +24,9 @@
  * THE SOFTWARE.
  */
 
-#ifndef _PD_ORDER0_H_
-#define _PD_ORDER0_H_
+#ifndef _VOR_H_
+#define _VOR_H_
 
-#include <stdint.h>
-#include "acoder.h"
 
-#define SIZEOF_P 255
-
-typedef struct pd_order0_data_s {
-	uint8_t cxt;
-	uint16_t p[SIZEOF_P];
-} pd_order0_t;
-
-static inline uint32_t pd_order0_reset(pd_order0_t *d)
-{
-	uint32_t c = d->cxt;
-	d->cxt = 1;
-	return c;
-}
-
-static inline void pd_order0_init(pd_order0_t *d)
-{
-	int i;
-	for (i = 0; i < sizeof(d->p) / sizeof(d->p[0]); i++)
-		d->p[i] = AC_SCALE_HALF;
-	pd_order0_reset(d);
-}
-static inline uint32_t pd_order0_probability(pd_order0_t *d)
-{
-	return d->p[d->cxt-1];
-}
-
-static inline void pd_order0_update(pd_order0_t *d, int y)
-{
-	if (y) {
-		d->p[d->cxt-1] -= d->p[d->cxt-1] >> 5;
-		d->cxt <<= 1;
-		d->cxt++;
-	} else {
-		d->p[d->cxt-1] += (AC_SCALE - d->p[d->cxt-1]) >> 5;
-		d->cxt <<= 1;
-	}
-}
-
-#undef SIZEOF_P
 
 #endif
