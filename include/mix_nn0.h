@@ -62,7 +62,7 @@ static inline float mix_nn0_mix(mix_nn0_t *nn, uint16_t p[MAX_CONTEXTS])
 	return nn->m;
 }
 
-static inline float mix_nn0_update(mix_nn0_t *nn, int y)
+static inline void mix_nn0_update(mix_nn0_t *nn, int y)
 {
 	int i;
 	for (i = 0; i < MAX_CONTEXTS; i++)

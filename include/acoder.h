@@ -97,7 +97,8 @@ static inline void ac_decoder_finish(ac_state_t *s)
 
 static inline int ac_encoder_process(ac_state_t *s, uint32_t freq, int bit)
 {
-	uint32_t rnew = (((uint64_t)s->range) * (freq << (AC_BITS - AC_SCALE_BITS))) >> AC_BITS;
+	uint32_t rnew = (((uint64_t)s->range) *
+			(freq << (AC_BITS - AC_SCALE_BITS))) >> AC_BITS;
 	if (bit) {
 		s->range -= rnew;
 		s->lowc += rnew;
@@ -112,7 +113,8 @@ static inline int ac_encoder_process(ac_state_t *s, uint32_t freq, int bit)
 
 static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 {
-	uint32_t rnew = (((uint64_t)s->range) * (freq << (AC_BITS - AC_SCALE_BITS))) >> AC_BITS;
+	uint32_t rnew = (((uint64_t)s->range) *
+			(freq << (AC_BITS - AC_SCALE_BITS))) >> AC_BITS;
 	int bit = (s->code >= rnew);
 	if (bit) {
 		s->range -= rnew;

@@ -28,6 +28,7 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <assert.h>
 
 /**
  * Prepare the context models.
@@ -57,13 +58,15 @@ typedef struct {
 	ac_state_t s;
 	pd_order0_t p0;
 	pd_order1_t p1;
+	mix_nn0_t nn;
 	off_t length;
 } vor_t;
 
-void vor_init(vor_t *v, vor_mode_t m, FILE *stream, off_t length)
+void vor_solid_init(vor_t *v, vor_mode_t m, FILE *stream, off_t length)
 {
 	pd_order0_init(&v->p0);
 	pd_order1_init(&v->p1);
+	mix_nn0_init(&v->nn);
 	v->m = m;
 	v->length = length;
 	switch (m) {
@@ -80,10 +83,55 @@ void vor_init(vor_t *v, vor_mode_t m, FILE *stream, off_t length)
 
 size_t vor_write(vor_t *v, const void *ptr, size_t size, size_t count)
 {
+	assert(v->m == VOR_COMPRESS_MODE);
+	size_t bytes = size * count;
+	const char *p = (const char *)ptr;
+	while (bytes--) {
+		int c = *p++;
+		pd_order0_reset(&v->p0);
+		pd_order1_reset(&v->p1);
+		for (int j = 0x80; j > 0; j >>= 1) {
+			uint16_t p[MAX_CONTEXTS];
+			p[0] = pd_order0_probability(&v->p0);
+			p[1] = pd_order1_probability(&v->p1);
+			float m = mix_nn0_mix(&v->nn, p);
+			int a = ac_encoder_process(&v->s, m > 0.5, c & j);
+			pd_order0_update(&v->p0, a);
+			pd_order1_update(&v->p1, a);
+			mix_nn0_update(&v->nn, a);
+		}
+	}
+	return size * count;
 }
 
 size_t vor_read(vor_t *v, void *ptr, size_t size, size_t count)
 {
+	assert(v->m == VOR_DECOMPRESS_MODE);
+	size_t bytes = size * count;
+	char *p = ptr;
+	while (bytes--) {
+		for (int j = 0x80; j > 0; j >>= 1) {
+			uint16_t p[MAX_CONTEXTS];
+			p[0] = pd_order0_probability(&v->p0);
+			p[1] = pd_order1_probability(&v->p1);
+			float m = mix_nn0_mix(&v->nn, p);
+			int a = ac_decoder_process(&v->s, m > 0.5);
+			pd_order0_update(&v->p0, a);
+			pd_order1_update(&v->p1, a);
+			mix_nn0_update(&v->nn, a);
+		}
+		*p++ = pd_order0_reset(&v->p0);
+		pd_order1_reset(&v->p1);
+	}
+	return size * count;
+}
+
+void vor_flush(vor_t *v)
+{
+	switch (v->m) {
+		case VOR_COMPRESS_MODE:	  ac_encoder_finish(&v->s); break;
+		case VOR_DECOMPRESS_MODE: ac_decoder_finish(&v->s); break;
+	}
 }
 
 int main(int argc, char **argv)
@@ -163,7 +211,9 @@ int main(int argc, char **argv)
 			}
 			input_files[num_files++] = filename;
 		}
-        }
+        } else {
+		input_files[num_files++] = "-";
+	}
 
 	if (compress_flag && decompress_flag) {
 		fprintf(stderr, "ERROR: cannot compress and decompress at"
