@@ -29,12 +29,12 @@ The license for this project is the MIT/Expat license.
 Introduction
 ------------
 
-This is a context mixing compressor written in C (C89 is currently used).
+This is a context mixing compressor written in C11.
 
 Building
 --------
 
-You need to use [CMake][1], and some decent compiler (tested with GCC 4.2+).
+You need to use [CMake][1], and some decent compiler (tested with GCC 4.8).
 
   [1]: http://www.cmake.org/
 
