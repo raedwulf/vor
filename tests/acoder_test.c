@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 	pd_order0_init(&p);
 	if (argv[1][0]=='c') {
 		f_len = flen(f);
-		fwrite(&f_len, 1, 4, g);
+		fwrite(&f_len, 1, sizeof(long), g);
 		ac_encoder_init(&s, g);
 
 		for (i = 0; i < f_len; i++) {
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
 
 		ac_encoder_finish(&s);
 	} else {
-		fread(&f_len, 1, 4, f);
+		fread(&f_len, 1, sizeof(long), f);
 		ac_decoder_init(&s, f);
 
 		for (i = 0; i < f_len; i++) {
