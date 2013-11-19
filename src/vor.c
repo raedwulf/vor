@@ -59,10 +59,10 @@ typedef struct {
 	pd_order0_t p0;
 	pd_order1_t p1;
 	mix_nn0_t nn;
-	off_t length;
+	uint64_t length;
 } vor_t;
 
-void vor_solid_init(vor_t *v, vor_mode_t m, FILE *stream, off_t length)
+void vor_solid_init(vor_t *v, vor_mode_t m, FILE *stream, uint64_t length)
 {
 	pd_order0_init(&v->p0);
 	pd_order1_init(&v->p1);
@@ -71,11 +71,11 @@ void vor_solid_init(vor_t *v, vor_mode_t m, FILE *stream, off_t length)
 	v->length = length;
 	switch (m) {
 		case VOR_COMPRESS_MODE:
-			fwrite(&length, 1, sizeof(off_t), stream);
+			fwrite(&length, 1, sizeof(uint64_t), stream);
 			ac_encoder_init(&v->s, stream);
 			break;
 		case VOR_DECOMPRESS_MODE:
-			fread(&v->length, 1, sizeof(off_t), stream);
+			fread(&v->length, 1, sizeof(uint64_t), stream);
 			ac_decoder_init(&v->s, stream);
 			break;
 	}
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 					"compress in-place).\n\n");
 			printf("Default is to use STDIN if no file is"
 					"specified or if - is given.\n");
-			exit(0);
+			return 0;
 		default:
 			abort();
 		}
@@ -200,12 +200,12 @@ int main(int argc, char **argv)
 			if (stat(filename, &s)) {
 				if (S_ISDIR(s.st_mode)) {
 					fprintf(stderr,
-						"ERROR: %s is a directory.",
+						"ERROR: %s is a directory.\n",
 						filename);
 					abort();
 				}
 			} else {
-				fprintf(stderr, "ERROR: %s does not exist.",
+				fprintf(stderr, "ERROR: %s does not exist.\n",
 					filename);
 				abort();
 			}
@@ -217,11 +217,11 @@ int main(int argc, char **argv)
 
 	if (compress_flag && decompress_flag) {
 		fprintf(stderr, "ERROR: cannot compress and decompress at"
-				"the same time.");
+				"the same time.\n");
 	}
 
 	if (!compress_flag && !decompress_flag) {
-		fprintf(stderr, "ERROR: nothing to do.");
+		fprintf(stderr, "ERROR: nothing to do.\n");
 	}
 
 	int i;
@@ -230,5 +230,5 @@ int main(int argc, char **argv)
 		} else {
 		}
 	}
-	exit(0);
+	return 0;
 }
