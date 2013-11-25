@@ -27,6 +27,9 @@
 #include "acoder.h"
 #include "pd_order0.h"
 
+#define AC_TEST_BUFFER_SIZE (1024 * 64)
+char buffer[AC_TEST_BUFFER_SIZE];
+
 long flen(FILE* f)
 {
 	long len;
@@ -38,7 +41,6 @@ long flen(FILE* f)
 
 int main(int argc, char** argv)
 {
-	int i;
 	long f_len;
 	FILE *f, *g;
 	ac_state_t s;
@@ -57,14 +59,16 @@ int main(int argc, char** argv)
 		fwrite(&f_len, 1, sizeof(long), g);
 		ac_encoder_init(&s, g);
 
-		for (i = 0; i < f_len; i++) {
-			int j;
-			int c = getc(f);
-			pd_order0_reset(&p);
+		while (!feof(f)) {
+			int bytes = fread(buffer, 1, AC_TEST_BUFFER_SIZE, f);
+			for (int i = 0; i < bytes; i++) {
+				int c = buffer[i];
+				pd_order0_reset(&p);
 #pragma unroll(8)
-			for (j = 0x80; j > 0; j >>= 1)
-				pd_order0_update(&p,
-						 ac_encoder_process(&s, pd_order0_probability(&p), c & j));
+				for (int j = 0x80; j > 0; j >>= 1)
+					pd_order0_update(&p,
+							 ac_encoder_process(&s, pd_order0_probability(&p), c & j));
+			}
 		}
 
 		ac_encoder_finish(&s);
@@ -72,13 +76,17 @@ int main(int argc, char** argv)
 		fread(&f_len, 1, sizeof(long), f);
 		ac_decoder_init(&s, f);
 
-		for (i = 0; i < f_len; i++) {
-			int j;
-			for (j = 0; j < 8; j++)
+		int i = 0;
+		while (i < f_len) {
+			for (int j = 0; j < 8; j++)
 				pd_order0_update(&p,
 						 ac_decoder_process(&s, pd_order0_probability(&p)));
-			putc(pd_order0_reset(&p), g);
+			buffer[i % AC_TEST_BUFFER_SIZE] = pd_order0_reset(&p);
+			i++;
+			if (i % AC_TEST_BUFFER_SIZE == 0)
+				fwrite(buffer, 1, AC_TEST_BUFFER_SIZE, g);
 		}
+		fwrite(buffer, 1, i % AC_TEST_BUFFER_SIZE, g);
 
 		ac_decoder_finish(&s);
 	}
