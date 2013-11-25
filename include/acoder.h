@@ -29,6 +29,12 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
+#include <assert.h>
+
+#ifndef AC_BUFFER_SIZE
+#define AC_BUFFER_SIZE 16384
+#endif
 
 #define AC_SIZE 4
 #define AC_BITS (AC_SIZE * 8)
@@ -40,11 +46,17 @@
 #define AC_STOP 0x01000000U
 #define AC_THRESHOLD 0xFF000000U
 
+#ifndef MIN
+#define MIN(x,y) (x < y ? x : y)
+#endif
+
 typedef struct ac_state_s {
 	uint32_t range, code, ffnum, cache;
 	uint64_t lowc;
 	FILE *f;
-} ac_state_t;
+	int bindex;
+	uint8_t buffer[AC_BUFFER_SIZE];
+} ac_state_t __attribute__((aligned(16)));
 
 static inline void ac_init(ac_state_t *s, FILE *f)
 {
@@ -53,6 +65,7 @@ static inline void ac_init(ac_state_t *s, FILE *f)
 	s->lowc = 0;
 	s->ffnum = 0;
 	s->cache = 0;
+	s->bindex = 0;
 }
 
 static inline void ac_encoder_init(ac_state_t *s, FILE *f)
@@ -62,11 +75,12 @@ static inline void ac_encoder_init(ac_state_t *s, FILE *f)
 
 static inline void ac_decoder_init(ac_state_t *s, FILE *f)
 {
-	int i;
 	ac_init(s, f);
-	for (i = 0; i < AC_SIZE + 1; i++) {
+	fread(s->buffer, 1, AC_BUFFER_SIZE, f);
+	for (int i = 0; i < AC_SIZE + 1; i++) {
 		s->code <<= 8;
-		s->code += getc(f);
+		s->code += s->buffer[s->bindex++];
+		//s->code += getc(f);
 	}
 }
 
@@ -75,9 +89,26 @@ static inline uint32_t ac_shift_low(ac_state_t *s)
 	uint32_t carry = (uint32_t)(s->lowc >> AC_BITS);
 	uint32_t low = (uint32_t)s->lowc;
 	if (low < AC_THRESHOLD || carry) {
-		putc(s->cache+carry, s->f);
-		for (; s->ffnum; s->ffnum--)
-			putc(carry - 1, s->f);
+		s->buffer[s->bindex++] = s->cache+carry;
+		do {
+			int count = MIN(AC_BUFFER_SIZE - s->bindex - 1, s->ffnum);
+			if (count > 0) {
+				s->buffer[s->bindex++] = carry - 1;
+				s->ffnum--;
+				if (--count) {
+					s->buffer[s->bindex++] = carry - 1;
+					s->ffnum--;
+					if (--count) {
+						memset(s->buffer + s->bindex, carry - 1, count);
+						s->bindex += count;
+						s->ffnum -= count;
+					}
+				}
+			} else if (s->bindex >= AC_BUFFER_SIZE - 1) {
+				fwrite(s->buffer, 1, s->bindex, s->f);
+				s->bindex = 0;
+			}
+		} while (s->ffnum);
 		s->cache = low >> (AC_BITS-8);
 	} else
 		s->ffnum++;
@@ -86,9 +117,9 @@ static inline uint32_t ac_shift_low(ac_state_t *s)
 
 static inline void ac_encoder_finish(ac_state_t *s)
 {
-	int i;
-	for (i = 0; i < AC_SIZE + 1; i++)
+	for (int i = 0; i < AC_SIZE + 1; i++)
 		ac_shift_low(s);
+	fwrite(s->buffer, 1, s->bindex, s->f);
 }
 
 static inline void ac_decoder_finish(ac_state_t *s)
@@ -121,10 +152,27 @@ static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 		s->code -= rnew;
 	} else
 		s->range = rnew;
-	while (s->range < AC_STOP) {
-		s->range <<= 8;
-		s->code <<= 8;
-		s->code += getc(s->f);
+
+	if (s->range < AC_STOP) {
+		int ctz = 32 - __builtin_clz(s->range);
+		int count = ((__builtin_ctz(AC_STOP) - ctz) >> 3) + 1;
+		if (count + s->bindex > AC_BUFFER_SIZE) {
+			int i = 0;
+			for (; i < AC_BUFFER_SIZE - s->bindex; i++)
+				s->buffer[i] = s->buffer[s->bindex++];
+			fread(s->buffer + i, 1, AC_BUFFER_SIZE - i, s->f);
+			s->bindex = 0;
+		}
+		do {
+			s->range <<= 8;
+			s->code <<= 8;
+			s->code += s->buffer[s->bindex++];
+			//if (s->bindex == AC_BUFFER_SIZE) {
+			//	fread(s->buffer, 1, AC_BUFFER_SIZE, s->f);
+			//	s->bindex = 0;
+			//}
+			//s->code += getc(s->f);
+		} while (s->range < AC_STOP);
 	}
 	return bit;
 }
