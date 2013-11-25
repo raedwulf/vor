@@ -1,5 +1,5 @@
 /**
- * Neural-network mixer
+ * Adaptive Arithmetic Coder
  *
  * Copyright (C) 2011 by Tai Chi Minh Ralph Eastwood
  *
@@ -22,50 +22,23 @@
  * THE SOFTWARE.
  */
 
-#ifndef _PD_MIXER_NN0_H_
-#define _PD_MIXER_NN0_H_
-
+#include <stdio.h>
 #include <stdint.h>
-#include <math.h>
+#define MAX_CONTEXTS 4
+#include "mix_nn0.h"
 
-#ifndef MAX_CONTEXTS
-#error "MAX_CONTEXTS must be defined."
-#endif
-#ifndef LEARNING_RATE
-#define LEARNING_RATE 0.01
-#endif
-
-typedef struct {
-	float weights[MAX_CONTEXTS];
-	float x[MAX_CONTEXTS];
-	float m;
-} mix_nn0_t;
-
-static inline void mix_nn0_init(mix_nn0_t *nn)
+int main(int argc, char **argv)
 {
-	int i;
-	for (i = 0; i < MAX_CONTEXTS; i++)
-		nn->weights[i] = 0.5;
-}
+	mix_nn0_t nn;
+	mix_nn0_init(&nn);
 
-static inline float mix_nn0_mix(mix_nn0_t *nn, uint16_t p[MAX_CONTEXTS])
-{
-	int i;
-	nn->m = 0.0;
-	for (i = 0; i < MAX_CONTEXTS; i++) {
-		float pi = p[i] * UINT16_MAX;
-		nn->x[i] = log(pi/(1-pi));
+	float result[8];
+	for (int i = 0; i < sizeof(result)/sizeof(float); i++) {
+		uint16_t contexts[MAX_CONTEXTS];
+		contexts[0] = (i & 1) * UINT16_MAX;
+		contexts[1] = (i * UINT16_MAX) / sizeof(result)/sizeof(float);
+		result[i] = mix_nn0_mix(&nn, contexts);
+		mix_nn0_update(&nn, i);
 	}
-	for (i = 0; i < MAX_CONTEXTS; i++)
-		nn->m += nn->weights[i] * nn->x[i];
-	nn->m = 1.0 / (1.0 + exp(-nn->m));
-	return nn->m;
+	return 0;
 }
-
-static inline void mix_nn0_update(mix_nn0_t *nn, int y)
-{
-	int i;
-	for (i = 0; i < MAX_CONTEXTS; i++)
-		nn->weights[i] += LEARNING_RATE * nn->x[i] * (y - nn->m);
-}
-#endif
