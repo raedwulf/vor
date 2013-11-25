@@ -94,15 +94,13 @@ static inline void ac_shift_low(ac_state_t *s)
 			if (count > 0) {
 				s->buffer[s->bindex++] = carry - 1;
 				s->ffnum--;
-				if (--count) {
-					s->buffer[s->bindex++] = carry - 1;
-					s->ffnum--;
-					if (--count) {
-						memset(s->buffer + s->bindex, carry - 1, count);
-						s->bindex += count;
-						s->ffnum -= count;
-					}
-				}
+				if (!--count) continue;
+				s->buffer[s->bindex++] = carry - 1;
+				s->ffnum--;
+				if (!--count) continue;
+				memset(s->buffer + s->bindex, carry - 1, count);
+				s->bindex += count;
+				s->ffnum -= count;
 			} else if (s->bindex >= AC_BUFFER_SIZE - 1) {
 				fwrite(s->buffer, 1, s->bindex, s->f);
 				s->bindex = 0;
@@ -155,8 +153,8 @@ static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 	if (s->range < AC_STOP) {
 		int ctz = 32 - __builtin_clz(s->range);
 		int count = ((__builtin_ctz(AC_STOP) - ctz) >> 3) + 1;
-		s->range <<= (8 * count);
-		s->code <<= (8 * count);
+		s->range <<= (count << 3);
+		s->code <<= (count << 3);
 
 		if (s->bindex == AC_BUFFER_SIZE) {
 ac_decoder_fread:
