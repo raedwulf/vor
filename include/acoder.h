@@ -33,7 +33,7 @@
 #include <assert.h>
 
 #ifndef AC_BUFFER_SIZE
-#define AC_BUFFER_SIZE 16384
+#define AC_BUFFER_SIZE (1024 * 64)
 #endif
 
 #define AC_SIZE 4
@@ -80,7 +80,6 @@ static inline void ac_decoder_init(ac_state_t *s, FILE *f)
 	for (int i = 0; i < AC_SIZE + 1; i++) {
 		s->code <<= 8;
 		s->code += s->buffer[s->bindex++];
-		//s->code += getc(f);
 	}
 }
 
@@ -156,23 +155,21 @@ static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 	if (s->range < AC_STOP) {
 		int ctz = 32 - __builtin_clz(s->range);
 		int count = ((__builtin_ctz(AC_STOP) - ctz) >> 3) + 1;
-		if (count + s->bindex > AC_BUFFER_SIZE) {
-			int i = 0;
-			for (; i < AC_BUFFER_SIZE - s->bindex; i++)
-				s->buffer[i] = s->buffer[s->bindex++];
-			fread(s->buffer + i, 1, AC_BUFFER_SIZE - i, s->f);
+		if (count > AC_BUFFER_SIZE - s->bindex) {
+			count -= AC_BUFFER_SIZE - s->bindex;
+			while (s->bindex < AC_BUFFER_SIZE) {
+				s->range <<= 8;
+				s->code <<= 8;
+				s->code += s->buffer[s->bindex++];
+			}
+			fread(s->buffer, 1, AC_BUFFER_SIZE, s->f);
 			s->bindex = 0;
 		}
 		do {
 			s->range <<= 8;
 			s->code <<= 8;
 			s->code += s->buffer[s->bindex++];
-			//if (s->bindex == AC_BUFFER_SIZE) {
-			//	fread(s->buffer, 1, AC_BUFFER_SIZE, s->f);
-			//	s->bindex = 0;
-			//}
-			//s->code += getc(s->f);
-		} while (s->range < AC_STOP);
+		} while (--count);
 	}
 	return bit;
 }
