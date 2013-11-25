@@ -78,15 +78,16 @@ int main(int argc, char** argv)
 
 		int i = 0;
 		while (i < f_len) {
-			for (int j = 0; j < 8; j++)
-				pd_order0_update(&p,
-						 ac_decoder_process(&s, pd_order0_probability(&p)));
-			buffer[i % AC_TEST_BUFFER_SIZE] = pd_order0_reset(&p);
-			i++;
-			if (i % AC_TEST_BUFFER_SIZE == 0)
-				fwrite(buffer, 1, AC_TEST_BUFFER_SIZE, g);
+			int end = MIN(AC_TEST_BUFFER_SIZE, f_len - i);
+			for (int k = 0; k < end; k++) {
+				for (int j = 0; j < 8; j++)
+					pd_order0_update(&p,
+							 ac_decoder_process(&s, pd_order0_probability(&p)));
+				buffer[k] = pd_order0_reset(&p);
+			}
+			fwrite(buffer, 1, end, g);
+			i += end;
 		}
-		fwrite(buffer, 1, i % AC_TEST_BUFFER_SIZE, g);
 
 		ac_decoder_finish(&s);
 	}
