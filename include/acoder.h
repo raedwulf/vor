@@ -158,28 +158,31 @@ static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 		s->range <<= (8 * count);
 		s->code <<= (8 * count);
 
-		int bend = AC_BUFFER_SIZE;
-		if (s->bindex == 0) {
+		if (s->bindex == AC_BUFFER_SIZE) {
 			fread(s->buffer, 1, AC_BUFFER_SIZE, s->f);
-			//printf("FULL\n");
+			s->bindex = 0;
 		} else if (count > AC_BUFFER_SIZE - s->bindex) {
 			fread(s->buffer, 1, s->bindex, s->f);
-			bend = s->bindex;
+			int bend = s->bindex;
+			switch (count) {
+				case 4: s->code |= s->buffer[s->bindex++] << 24;
+					if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
+				case 3: s->code |= s->buffer[s->bindex++] << 16;
+					if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
+				case 2:	s->code |= s->buffer[s->bindex++] << 8;
+					if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
+				case 1: s->code |= s->buffer[s->bindex++];
+			}
+			while (bend < AC_BUFFER_SIZE)
+				s->buffer[bend++] = getc(s->f);
+			return bit;
 		}
-
 		switch (count) {
 			case 4: s->code |= s->buffer[s->bindex++] << 24;
-				if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
 			case 3: s->code |= s->buffer[s->bindex++] << 16;
-				if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
 			case 2:	s->code |= s->buffer[s->bindex++] << 8;
-				if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
 			case 1: s->code |= s->buffer[s->bindex++];
-				if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
 		}
-
-		while (bend < AC_BUFFER_SIZE)
-			s->buffer[bend++] = getc(s->f);
 	}
 	return bit;
 }
