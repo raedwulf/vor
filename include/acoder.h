@@ -155,29 +155,21 @@ static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 		int count = ((__builtin_ctz(AC_STOP) - ctz) >> 3) + 1;
 		s->range <<= (count << 3);
 		s->code <<= (count << 3);
+		count--;
 
 		if (s->bindex == AC_BUFFER_SIZE) {
 ac_decoder_fread:
 			fread(s->buffer, 1, AC_BUFFER_SIZE, s->f);
 			s->bindex = 0;
-		} else if (count > AC_BUFFER_SIZE - s->bindex) {
-			switch (count) {
-				case 4: s->code |= s->buffer[s->bindex++] << 24;
-					--count; if (AC_BUFFER_SIZE == s->bindex) break;
-				case 3: s->code |= s->buffer[s->bindex++] << 16;
-					--count; if (AC_BUFFER_SIZE == s->bindex) break;
-				case 2:	s->code |= s->buffer[s->bindex++] << 8;
-					--count; if (AC_BUFFER_SIZE == s->bindex) break;
-				case 1: s->code |= s->buffer[s->bindex++];
-			}
+		} else if (count > AC_BUFFER_SIZE - s->bindex - 1) {
+			do {
+				s->code |= s->buffer[s->bindex++] << (count << 3);
+				--count;
+			} while (s->bindex != AC_BUFFER_SIZE);
 			goto ac_decoder_fread;
 		}
-		switch (count) {
-			case 4: s->code |= s->buffer[s->bindex++] << 24;
-			case 3: s->code |= s->buffer[s->bindex++] << 16;
-			case 2:	s->code |= s->buffer[s->bindex++] << 8;
-			case 1: s->code |= s->buffer[s->bindex++];
-		}
+
+		do s->code |= s->buffer[s->bindex++] << (count << 3); while (count--);
 	}
 	return bit;
 }
