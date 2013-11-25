@@ -83,7 +83,7 @@ static inline void ac_decoder_init(ac_state_t *s, FILE *f)
 	}
 }
 
-static inline uint32_t ac_shift_low(ac_state_t *s)
+static inline void ac_shift_low(ac_state_t *s)
 {
 	uint32_t carry = (uint32_t)(s->lowc >> AC_BITS);
 	uint32_t low = (uint32_t)s->lowc;
@@ -111,7 +111,7 @@ static inline uint32_t ac_shift_low(ac_state_t *s)
 		s->cache = low >> (AC_BITS-8);
 	} else
 		s->ffnum++;
-	return s->lowc = (low << 8);
+	s->lowc = (low << 8);
 }
 
 static inline void ac_encoder_finish(ac_state_t *s)
@@ -159,23 +159,20 @@ static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 		s->code <<= (8 * count);
 
 		if (s->bindex == AC_BUFFER_SIZE) {
+ac_decoder_fread:
 			fread(s->buffer, 1, AC_BUFFER_SIZE, s->f);
 			s->bindex = 0;
 		} else if (count > AC_BUFFER_SIZE - s->bindex) {
-			fread(s->buffer, 1, s->bindex, s->f);
-			int bend = s->bindex;
 			switch (count) {
 				case 4: s->code |= s->buffer[s->bindex++] << 24;
-					if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
+					--count; if (AC_BUFFER_SIZE == s->bindex) break;
 				case 3: s->code |= s->buffer[s->bindex++] << 16;
-					if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
+					--count; if (AC_BUFFER_SIZE == s->bindex) break;
 				case 2:	s->code |= s->buffer[s->bindex++] << 8;
-					if (s->bindex == AC_BUFFER_SIZE) s->bindex = 0;
+					--count; if (AC_BUFFER_SIZE == s->bindex) break;
 				case 1: s->code |= s->buffer[s->bindex++];
 			}
-			while (bend < AC_BUFFER_SIZE)
-				s->buffer[bend++] = getc(s->f);
-			return bit;
+			goto ac_decoder_fread;
 		}
 		switch (count) {
 			case 4: s->code |= s->buffer[s->bindex++] << 24;
