@@ -36,23 +36,45 @@
 #define AC_BUFFER_SIZE (1024 * 64)
 #endif
 
-#define AC_SIZE 4
+#ifndef AC_SIZE
+//#define AC_SIZE 4
+#define AC_SIZE 8
+#endif
+
+#if AC_SIZE == 4
+typedef uint32_t uintac_t;
+typedef uint64_t uintac2_t;
+#define AC_MAX UINT32_MAX
+#define clz(x) __builtin_clz(x)
+#define ctz(x) __builtin_ctz(x)
+#elif AC_SIZE == 8
+typedef uint64_t uintac_t;
+typedef __uint128_t uintac2_t;
+#define AC_MAX UINT64_MAX
+#define clz(x) __builtin_clzl(x)
+#define ctz(x) __builtin_ctzl(x)
+#else
+#error Unsupported AC_SIZE
+#endif
+
 #define AC_BITS (AC_SIZE * 8)
+//#define AC_SCALE_BITS (AC_SIZE * 4 - 1)
+//#define AC_SCALE ((uintac_t)(1<<AC_SCALE_BITS))
 #define AC_SCALE_BITS 15
 #define AC_SCALE (1<<AC_SCALE_BITS)
 #define AC_SCALE_MASK (AC_SCALE-1)
 #define AC_SCALE_HALF (AC_SCALE>>1)
 
-#define AC_STOP 0x01000000U
-#define AC_THRESHOLD 0xFF000000U
+#define AC_STOP ((uintac_t)1 << ((AC_SIZE-1) * 8))
+#define AC_THRESHOLD ((uintac_t)0xFF << ((AC_SIZE-1) * 8))
 
 #ifndef MIN
 #define MIN(x,y) (x < y ? x : y)
 #endif
 
 typedef struct ac_state_s {
-	uint32_t range, code, ffnum, cache;
-	uint64_t lowc;
+	uintac_t range, code, ffnum, cache;
+	uintac2_t lowc;
 	FILE *f;
 	int bindex;
 	uint8_t buffer[AC_BUFFER_SIZE];
@@ -61,7 +83,7 @@ typedef struct ac_state_s {
 static inline void ac_init(ac_state_t *s, FILE *f)
 {
 	s->f = f;
-	s->range = 0xFFFFFFFFU;
+	s->range = AC_MAX;
 	s->lowc = 0;
 	s->ffnum = 0;
 	s->cache = 0;
@@ -85,8 +107,8 @@ static inline void ac_decoder_init(ac_state_t *s, FILE *f)
 
 static inline void ac_shift_low(ac_state_t *s)
 {
-	uint32_t carry = (uint32_t)(s->lowc >> AC_BITS);
-	uint32_t low = (uint32_t)s->lowc;
+	uintac_t carry = (uintac_t)(s->lowc >> AC_BITS);
+	uintac_t low = (uintac_t)s->lowc;
 	if (low < AC_THRESHOLD || carry) {
 		s->buffer[s->bindex++] = s->cache+carry;
 		do {
@@ -123,9 +145,9 @@ static inline void ac_decoder_finish(ac_state_t *s)
 {
 }
 
-static inline int ac_encoder_process(ac_state_t *s, uint32_t freq, int bit)
+static inline int ac_encoder_process(ac_state_t *s, uintac_t freq, int bit)
 {
-	uint32_t rnew = (((uint64_t)s->range) *
+	uintac_t rnew = (((uintac2_t)s->range) *
 			(freq << (AC_BITS - AC_SCALE_BITS))) >> AC_BITS;
 	if (bit) {
 		s->range -= rnew;
@@ -139,9 +161,9 @@ static inline int ac_encoder_process(ac_state_t *s, uint32_t freq, int bit)
 	return bit;
 }
 
-static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
+static inline int ac_decoder_process(ac_state_t *s, uintac_t freq)
 {
-	uint32_t rnew = (((uint64_t)s->range) *
+	uintac_t rnew = (((uintac2_t)s->range) *
 			(freq << (AC_BITS - AC_SCALE_BITS))) >> AC_BITS;
 	int bit = (s->code >= rnew);
 	if (bit) {
@@ -151,8 +173,7 @@ static inline int ac_decoder_process(ac_state_t *s, uint32_t freq)
 		s->range = rnew;
 
 	if (s->range < AC_STOP) {
-		int ctz = 32 - __builtin_clz(s->range);
-		int count = ((__builtin_ctz(AC_STOP) - ctz) >> 3) + 1;
+		int count = ((ctz(AC_STOP) - (AC_BITS - clz(s->range))) >> 3) + 1;
 		s->range <<= (count << 3);
 		s->code <<= (count << 3);
 		count--;
