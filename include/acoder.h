@@ -41,6 +41,16 @@
 #define AC_SIZE 8
 #endif
 
+#ifndef AC_HANDLE
+#define AC_HANDLE FILE*
+#endif
+#ifndef AC_READ
+#define AC_READ(h,b,s) fread(b, 1, s, h)
+#endif
+#ifndef AC_WRITE
+#define AC_WRITE(h,b,s) fwrite(b, 1, s, h)
+#endif
+
 #if AC_SIZE == 4
 typedef uint32_t uintac_t;
 typedef uint64_t uintac2_t;
@@ -75,12 +85,12 @@ typedef __uint128_t uintac2_t;
 typedef struct ac_state_s {
 	uintac_t range, code, ffnum, cache;
 	uintac2_t lowc;
-	FILE *f;
+	AC_HANDLE f;
 	int bindex;
 	uint8_t buffer[AC_BUFFER_SIZE];
 } ac_state_t __attribute__((aligned(16)));
 
-static inline void ac_init(ac_state_t *s, FILE *f)
+static inline void ac_init(ac_state_t *s, AC_HANDLE f)
 {
 	s->f = f;
 	s->range = AC_MAX;
@@ -90,15 +100,15 @@ static inline void ac_init(ac_state_t *s, FILE *f)
 	s->bindex = 0;
 }
 
-static inline void ac_encoder_init(ac_state_t *s, FILE *f)
+static inline void ac_encoder_init(ac_state_t *s, AC_HANDLE f)
 {
 	ac_init(s, f);
 }
 
-static inline void ac_decoder_init(ac_state_t *s, FILE *f)
+static inline void ac_decoder_init(ac_state_t *s, AC_HANDLE f)
 {
 	ac_init(s, f);
-	fread(s->buffer, 1, AC_BUFFER_SIZE, f);
+	AC_READ(f, s->buffer, AC_BUFFER_SIZE);
 	for (int i = 0; i < AC_SIZE + 1; i++) {
 		s->code <<= 8;
 		s->code += s->buffer[s->bindex++];
@@ -124,7 +134,7 @@ static inline void ac_shift_low(ac_state_t *s)
 				s->bindex += count;
 				s->ffnum -= count;
 			} else if (s->bindex >= AC_BUFFER_SIZE - 1) {
-				fwrite(s->buffer, 1, s->bindex, s->f);
+				AC_WRITE(s->f, s->buffer, s->bindex);
 				s->bindex = 0;
 			}
 		} while (s->ffnum);
@@ -138,7 +148,7 @@ static inline void ac_encoder_finish(ac_state_t *s)
 {
 	for (int i = 0; i < AC_SIZE + 1; i++)
 		ac_shift_low(s);
-	fwrite(s->buffer, 1, s->bindex, s->f);
+	AC_WRITE(s->f, s->buffer, s->bindex);
 }
 
 static inline void ac_decoder_finish(ac_state_t *s)
@@ -180,7 +190,7 @@ static inline int ac_decoder_process(ac_state_t *s, uintac_t freq)
 
 		if (s->bindex == AC_BUFFER_SIZE) {
 ac_decoder_fread:
-			fread(s->buffer, 1, AC_BUFFER_SIZE, s->f);
+			AC_READ(s->f, s->buffer, AC_BUFFER_SIZE);
 			s->bindex = 0;
 		} else if (count > AC_BUFFER_SIZE - s->bindex - 1) {
 			do {
