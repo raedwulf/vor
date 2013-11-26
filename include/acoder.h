@@ -3,7 +3,7 @@
  * based on Shelwien's Range Coder from
  * http://encode.ru/threads/1153-Simple-binary-rangecoder-demo
  *
- * Copyright (C) 2011 by Tai Chi Minh Ralph Eastwood
+ * Copyright (C) 2011-2013 by Tai Chi Minh Ralph Eastwood
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
