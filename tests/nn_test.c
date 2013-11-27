@@ -32,13 +32,17 @@ int main(int argc, char **argv)
 	mix_nn0_t nn;
 	mix_nn0_init(&nn);
 
-	float result[8];
-	for (int i = 0; i < sizeof(result)/sizeof(float); i++) {
+	float result = 0.0f;
+	for (int i = 0; i < 16; i++) {
 		uint16_t contexts[MAX_CONTEXTS];
-		contexts[0] = (i & 1) * UINT16_MAX;
-		contexts[1] = (i * UINT16_MAX) / sizeof(result)/sizeof(float);
-		result[i] = mix_nn0_mix(&nn, contexts);
-		mix_nn0_update(&nn, i);
+		contexts[0] = UINT16_MAX;
+		contexts[1] = 0;
+		float new = mix_nn0_mix(&nn, contexts);
+		if (new < result)
+			return 1;
+		if (nn.weights[0] < nn.weights[1])
+			return 1;
+		mix_nn0_update(&nn, 1);
 	}
 	return 0;
 }
