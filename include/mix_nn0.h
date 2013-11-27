@@ -31,8 +31,11 @@
 #ifndef MAX_CONTEXTS
 #error "MAX_CONTEXTS must be defined."
 #endif
-#ifndef LEARNING_RATE
-#define LEARNING_RATE 0.01
+#ifndef NN0_LEARNING_RATE
+#define NN0_LEARNING_RATE 0.01f
+#endif
+#ifndef NN0_EPSILON
+#define NN0_EPSILON 0.0001f
 #endif
 
 typedef struct {
@@ -45,20 +48,22 @@ static inline void mix_nn0_init(mix_nn0_t *nn)
 {
 	int i;
 	for (i = 0; i < MAX_CONTEXTS; i++)
-		nn->weights[i] = 0.5;
+		nn->weights[i] = 0.5f;
 }
 
 static inline float mix_nn0_mix(mix_nn0_t *nn, uint16_t p[MAX_CONTEXTS])
 {
 	int i;
-	nn->m = 0.0;
+	nn->m = 0.0f;
 	for (i = 0; i < MAX_CONTEXTS; i++) {
-		float pi = p[i] * UINT16_MAX;
-		nn->x[i] = log(pi/(1-pi));
+		float pi = (float)p[i] / (float)UINT16_MAX;
+		if (pi == 0.0f) pi = NN0_EPSILON;
+		if (pi == 1.0f) pi = 1.0f - NN0_EPSILON;
+		nn->x[i] = log(pi/(1.0f-pi));
 	}
 	for (i = 0; i < MAX_CONTEXTS; i++)
 		nn->m += nn->weights[i] * nn->x[i];
-	nn->m = 1.0 / (1.0 + exp(-nn->m));
+	nn->m = 1.0f / (1.0f + exp(-nn->m));
 	return nn->m;
 }
 
@@ -66,6 +71,6 @@ static inline void mix_nn0_update(mix_nn0_t *nn, int y)
 {
 	int i;
 	for (i = 0; i < MAX_CONTEXTS; i++)
-		nn->weights[i] += LEARNING_RATE * nn->x[i] * (y - nn->m);
+		nn->weights[i] += NN0_LEARNING_RATE * nn->x[i] * (y - nn->m);
 }
 #endif
