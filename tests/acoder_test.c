@@ -28,7 +28,7 @@
 #include "pd_order0.h"
 
 #define AC_TEST_BUFFER_SIZE (1024 * 64)
-static uint8_t buffer[AC_TEST_BUFFER_SIZE];
+static char buffer[AC_TEST_BUFFER_SIZE];
 
 static long flen(FILE* f)
 {
@@ -53,26 +53,16 @@ static void compress(FILE *f, FILE *g)
 	while (!feof(f)) {
 		int bytes = fread(buffer, 1, AC_TEST_BUFFER_SIZE, f);
 		for (int i = 0; i < bytes; i++) {
+			int c = buffer[i];
 			pd_order0_reset(&p);
-			for (uint8_t j = 0x80; j; j >>= 1) {
-				int a = ac_encoder_process(&s, pd_order0_probability(&p), buffer[i] & j);
+			for (int j = 0x80; j > 0; j >>= 1) {
+				int a = ac_encoder_process(&s, pd_order0_probability(&p), c & j);
 				pd_order0_update(&p, a);
 			}
 		}
 	}
 
 	ac_encoder_finish(&s);
-}
-
-static inline void decompress_block(FILE *f, FILE *g, ac_state_t *s, pd_order0_t *p, int size) {
-	for (int k = 0; k < size; k++) {
-		for (int j = 0; j < 8; j++) {
-			int a = ac_decoder_process(s, pd_order0_probability(p));
-			pd_order0_update(p, a);
-		}
-		buffer[k] = pd_order0_reset(p);
-	}
-	fwrite(buffer, 1, size, g);
 }
 
 static void decompress(FILE *f, FILE *g)
@@ -86,11 +76,19 @@ static void decompress(FILE *f, FILE *g)
 	pd_order0_t p;
 	pd_order0_init(&p);
 
-	long l = (f_len - (f_len % AC_TEST_BUFFER_SIZE)) / AC_TEST_BUFFER_SIZE;
-	for (int i = 0; i < l; i++)
-		decompress_block(f, g, &s, &p, AC_TEST_BUFFER_SIZE);
-
-	decompress_block(f, g, &s, &p, f_len % AC_TEST_BUFFER_SIZE);
+	int i = 0;
+	while (i < f_len) {
+		int end = MIN(AC_TEST_BUFFER_SIZE, f_len - i);
+		for (int k = 0; k < end; k++) {
+			for (int j = 0; j < 8; j++) {
+				int a = ac_decoder_process(&s, pd_order0_probability(&p));
+				pd_order0_update(&p, a);
+			}
+			buffer[k] = pd_order0_reset(&p);
+		}
+		fwrite(buffer, 1, end, g);
+		i += end;
+	}
 
 	ac_decoder_finish(&s);
 }
